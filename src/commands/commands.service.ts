@@ -9,87 +9,125 @@ import { IOLLAMARequest } from '../types/commands/request';
 export class CommandsService {
   constructor(private httpService: HttpService) {}
 
-  async qna(request: IOLLAMARequest): Promise<GlobalResponse> {
+  /**
+   * Generic HTTP request helper for Ollama API
+   */
+  private async makeOllamaRequest<T>(
+    method: 'GET' | 'POST',
+    endpoint: string,
+    data?: any,
+    responseValidator?: (response: any) => boolean,
+    successMessage?: string
+  ): Promise<GlobalResponse> {
     try {
-      const qnaUrl = `${OLLAMA_API_URL}/api/generate`;
+      const url = this.buildOllamaUrl(endpoint);
+      
+      const httpRequest = method === 'GET' 
+        ? this.httpService.get(url)
+        : this.httpService.post(url, data);
 
-      const response = await firstValueFrom(
-        this.httpService.post(qnaUrl, request)
-      ).catch(error => { return { status: false,  message: error,  data: null} });
-        
-      console.log('response.data ==> ',response.data)
-      if (!response?.data?.messages) {
+      const response = await firstValueFrom(httpRequest)
+        .catch(error => {
+          console.log('HTTP Request Error:', error);
+          return { status: false, message: error, data: null };
+        });
+
+      console.log('response.data ==>', response.data);
+
+      // Response validation
+      if (!this.validateResponse(response, responseValidator)) {
         return {
           status: false,
-          message: '',
+          message: 'Invalid response format',
           data: null,
         };
       }
 
       return {
         status: true,
-        message: 'QNA request sent successfully',
+        message: successMessage || 'Request sent successfully',
         data: response.data,
-      };      
+      };
+
     } catch (error) {
-      console.log("error",error)
+      console.log('Service Error:', error);
       throw new Error(error);
     }
   }
-// BURADA KOD TEKRARI VAR HALLET
+
+  /**
+   * URL builder helper
+   */
+  private buildOllamaUrl(endpoint: string): string {
+    return `${OLLAMA_API_URL}${endpoint}`;
+  }
+
+  /**
+   * Response validation helper
+   */
+  private validateResponse(response: any, validator?: (response: any) => boolean): boolean {
+    if (!response || response.status === false) {
+      return false;
+    }
+
+    if (validator) {
+      return validator(response);
+    }
+
+    return !!response.data;
+  }
+
+  /**
+   * Response validators for different endpoints
+   */
+  private validateGenerateResponse = (response: any): boolean => {
+    return !!response?.data?.response;
+  };
+
+  private validateChatResponse = (response: any): boolean => {
+    return !!response?.data?.message;
+  };
+
+  private validateModelsResponse = (response: any): boolean => {
+    return !!response?.data?.models;
+  };
+
+  /**
+   * QNA endpoint - uses /api/generate
+   */
+  async qna(request: IOLLAMARequest): Promise<GlobalResponse> {
+    return this.makeOllamaRequest(
+      'POST',
+      '/api/generate',
+      request,
+      this.validateGenerateResponse,
+      'QNA request sent successfully'
+    );
+  }
+
+  /**
+   * Chat endpoint - uses /api/chat
+   */
   async chat(request: IOLLAMARequest): Promise<GlobalResponse> {
-    try {
-      const chatUrl = `${OLLAMA_API_URL}/api/chat`;
-
-      const response = await firstValueFrom(
-        this.httpService.post(chatUrl, request)
-      ).catch(error => { return { status: false,  message: error,  data: null} });
-        
-      console.log('response.data ==> ',response.data)
-      if (!response?.data?.messages) {
-        return {
-        status: false,
-        message: '',
-        data: null,
-      };
-      }
-
-      return {
-        status: true,
-        message: 'Chat request sent successfully',
-        data: response.data,
-      };
-    } catch (error) {
-      console.log("error",error)
-      throw new Error(error);
-    }
+    return this.makeOllamaRequest(
+      'POST',
+      '/api/chat',
+      request,
+      this.validateChatResponse,
+      'Chat request sent successfully'
+    );
   }
 
+  /**
+   * Models endpoint - uses /api/tags
+   */
   async models(): Promise<GlobalResponse> {
-    try {
-      const modelsUrl = `${OLLAMA_API_URL}/api/tags`;
-
-      const response = await firstValueFrom(
-        this.httpService.get(modelsUrl)
-      ).catch(error => { return { status: false,  message: error,  data: null} });
-        
-      console.log('response.data ==> ',response.data)
-      if (!response?.data?.models) {
-        return {
-        status: false,
-        message: '',
-        data: null,
-      };
-      }
-
-      return {
-        status: true,
-        message: 'Models request sent successfully',
-        data: response.data,
-      };
-    } catch (error) {
-      console.log("error",error)
-      throw new Error(error);
-    }
+    return this.makeOllamaRequest(
+      'GET',
+      '/api/tags',
+      null,
+      this.validateModelsResponse,
+      'Models request sent successfully'
+    );
   }
 }
