@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
-import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { GlobalResponse } from '../types/GlobalResponse';
 import {
   DtoOLLAMARequest,
@@ -15,6 +15,7 @@ export class CommandsController {
 
   @Post('/qna')
   @HttpCode(200)
+  @ApiSecurity('x-api-key')
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaQNA(
     //@Query('serial_no') serial_no: string,
@@ -55,6 +56,7 @@ export class CommandsController {
 
   @Post('/chat')
   @HttpCode(200)
+  @ApiSecurity('x-api-key')
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaChat(
     //@Query('serial_no') serial_no: string,
@@ -95,6 +97,7 @@ export class CommandsController {
 
   @Get('/models')
   @HttpCode(200)
+  @ApiSecurity('x-api-key')
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaModels(): Promise<GlobalResponse> {
     try {
