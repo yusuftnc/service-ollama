@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GlobalResponse } from '../types/GlobalResponse';
 import {
@@ -7,7 +7,6 @@ import {
 import { CommandsService } from './commands.service';
 import { OollamaType, OutputType } from './commands.enum';
 import { DtoGlobalResponse } from 'src/dto/dtoGlobalResponse';
-import { X_API_KEY } from '../utils/API';
 
 //@ApiTags('commands')
 @Controller('')
@@ -19,17 +18,9 @@ export class CommandsController {
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaQNA(
     //@Query('serial_no') serial_no: string,
-    @Headers('x-api-key') apiKey: string,
     @Body() request: DtoOLLAMARequest,
   ): Promise<GlobalResponse> {
     try {
-      if (apiKey !== X_API_KEY) {
-        return {
-          status: false,
-          message: 'Api Key Required',
-          data: {},
-        };
-      }
       if (!request.model) {
         return {
           status: false,
@@ -67,17 +58,9 @@ export class CommandsController {
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaChat(
     //@Query('serial_no') serial_no: string,
-    @Headers('x-api-key') apiKey: string,
     @Body() request: DtoOLLAMARequest,
   ): Promise<GlobalResponse> {
     try {
-      if (apiKey !== X_API_KEY) {
-        return {
-          status: false,
-          message: 'Api Key Required',
-          data: {},
-        };
-      }
       if (!request.model) {
         return {
           status: false,
@@ -113,18 +96,8 @@ export class CommandsController {
   @Get('/models')
   @HttpCode(200)
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
-  async ollamaModels(
-    @Headers('x-api-key') apiKey: string,
-  ): Promise<GlobalResponse> {
+  async ollamaModels(): Promise<GlobalResponse> {
     try {
-      if (apiKey !== X_API_KEY) {
-        return {
-          status: false,
-          message: 'Api Key Required',
-          data: {},
-        };
-      }
-    
       const response = await this.commandService.models();
       if (!response.status) {
         return {
