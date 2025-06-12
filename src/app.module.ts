@@ -12,7 +12,7 @@ import { ApiKeyGuard } from './guards/api-key.guard';
   imports: [
     HttpModule.registerAsync({
       useFactory: () => ({
-        timeout: 10000,
+        timeout: 120000, // 2 dakika
         maxRedirects: 5,
       }),
     }),
