@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
 import { ApiBody, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { GlobalResponse } from '../types/GlobalResponse';
 import {
@@ -7,6 +7,8 @@ import {
 import { CommandsService } from './commands.service';
 import { OollamaType, OutputType } from './commands.enum';
 import { DtoGlobalResponse } from 'src/dto/dtoGlobalResponse';
+import { Response } from 'express';
+import { Observable } from 'rxjs';
 
 //@ApiTags('commands')
 @Controller('')
@@ -18,9 +20,9 @@ export class CommandsController {
   @ApiSecurity('x-api-key')
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaQNA(
-    //@Query('serial_no') serial_no: string,
     @Body() request: DtoOLLAMARequest,
-  ): Promise<GlobalResponse> {
+    @Res() res: Response
+  ): Promise<void | GlobalResponse> {
     try {
       if (!request.model) {
         return {
@@ -29,8 +31,33 @@ export class CommandsController {
           data: {},
         };
       }
-    
+
       const response = await this.commandService.qna(request);
+      
+      // Stream response ise
+      if (response instanceof Observable) {
+        console.log('Stream response detected in controller');
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        
+        response.subscribe({
+          next: (chunk) => {
+            console.log('Sending chunk:', chunk);
+            res.write(JSON.stringify(chunk) + '\n');
+          },
+          error: (error) => {
+            console.error('Stream Error in controller:', error);
+            res.end();
+          },
+          complete: () => {
+            console.log('Stream completed in controller');
+            res.end();
+          }
+        });
+        return;
+      }
+
+      // Normal response ise
       if (!response.status) {
         return {
           status: false,
@@ -59,9 +86,9 @@ export class CommandsController {
   @ApiSecurity('x-api-key')
   @ApiResponse({ status: 200, description: 'OK', type: DtoGlobalResponse })
   async ollamaChat(
-    //@Query('serial_no') serial_no: string,
     @Body() request: DtoOLLAMARequest,
-  ): Promise<GlobalResponse> {
+    @Res() res: Response
+  ): Promise<void | GlobalResponse> {
     try {
       if (!request.model) {
         return {
@@ -70,8 +97,30 @@ export class CommandsController {
           data: {},
         };
       }
-    
+
       const response = await this.commandService.chat(request);
+      
+      // Stream response ise
+      if (response instanceof Observable) {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        
+        response.subscribe({
+          next: (chunk) => {
+            res.write(JSON.stringify(chunk) + '\n');
+          },
+          error: (error) => {
+            console.error('Stream Error:', error);
+            res.end();
+          },
+          complete: () => {
+            res.end();
+          }
+        });
+        return;
+      }
+
+      // Normal response ise
       if (!response.status) {
         return {
           status: false,

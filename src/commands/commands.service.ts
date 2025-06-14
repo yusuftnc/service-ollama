@@ -4,6 +4,8 @@ import { GlobalResponse } from '../types/GlobalResponse';
 import { OLLAMA_API_URL } from '../utils/API';
 import { firstValueFrom } from 'rxjs';
 import { IOLLAMARequest } from '../types/commands/request';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Injectable()
 export class CommandsService {
@@ -56,6 +58,57 @@ export class CommandsService {
   }
 
   /**
+   * Stream response için özel request helper
+   */
+  private makeStreamRequest(
+    endpoint: string,
+    data: any
+  ): Observable<any> {
+    const url = this.buildOllamaUrl(endpoint);
+    console.log('Stream Request URL:', url);
+    console.log('Stream Request Data:', data);
+    
+    return new Observable(subscriber => {
+      this.httpService.post(url, data, {
+        responseType: 'stream',
+      }).subscribe({
+        next: (response) => {
+          console.log('Stream Response received');
+          response.data.on('data', (chunk: Buffer) => {
+            console.log('Raw chunk:', chunk.toString());
+            const lines = chunk.toString().split('\n');
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  const jsonData = JSON.parse(line);
+                  console.log('Parsed JSON:', jsonData);
+                  subscriber.next(jsonData);
+                } catch (e) {
+                  console.error('JSON parse error:', e, 'Line:', line);
+                }
+              }
+            }
+          });
+
+          response.data.on('end', () => {
+            console.log('Stream ended');
+            subscriber.complete();
+          });
+
+          response.data.on('error', (err: Error) => {
+            console.error('Stream error:', err);
+            subscriber.error(err);
+          });
+        },
+        error: (error) => {
+          console.error('HTTP request error:', error);
+          subscriber.error(error);
+        }
+      });
+    });
+  }
+
+  /**
    * URL builder helper
    */
   private buildOllamaUrl(endpoint: string): string {
@@ -95,7 +148,13 @@ export class CommandsService {
   /**
    * QNA endpoint - uses /api/generate
    */
-  async qna(request: IOLLAMARequest): Promise<GlobalResponse> {
+  async qna(request: IOLLAMARequest): Promise<GlobalResponse | Observable<any>> {
+    // Stream is true ise stream response dön
+    if (request.stream) {
+      return this.makeStreamRequest('/api/generate', request);
+    }
+    
+    // Normal response için
     return this.makeOllamaRequest(
       'POST',
       '/api/generate',
@@ -108,7 +167,13 @@ export class CommandsService {
   /**
    * Chat endpoint - uses /api/chat
    */
-  async chat(request: IOLLAMARequest): Promise<GlobalResponse> {
+  async chat(request: IOLLAMARequest): Promise<GlobalResponse | Observable<any>> {
+    // Stream is true ise stream response dön
+    if (request.stream) {
+      return this.makeStreamRequest('/api/chat', request);
+    }
+
+    // Normal response için
     return this.makeOllamaRequest(
       'POST',
       '/api/chat',
