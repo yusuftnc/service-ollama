@@ -6,7 +6,7 @@ import { AppService } from './app.service';
 import { CommandsController } from './commands/commands.controller';
 import { CommandsService } from './commands/commands.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
-
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -16,6 +16,7 @@ import { ApiKeyGuard } from './guards/api-key.guard';
         maxRedirects: 5,
       }),
     }),
+    FilesModule,
   ],
   controllers: [
     AppController,
